@@ -1,0 +1,221 @@
+{
+  "nodes": {
+    "root": {
+      "rowtype": "Root",
+      "columns": [
+        "2 items",
+        "Table Root"
+      ],
+      "isopen": true,
+      "parent": "",
+      "position": 0,
+      "tags": "R",
+      "text": "ROOT",
+      "uid": "root",
+      "value": "",
+      "type": "table",
+      "ref": ""
+    },
+    "d1": {
+      "rowtype": "Table",
+      "columns": [
+        "3 items",
+        "child Table"
+      ],
+      "isopen": true,
+      "parent": "root",
+      "position": "end",
+      "tags": "T",
+      "text": "Files",
+      "uid": "d1",
+      "value": "",
+      "type": "child",
+      "ref": ""
+    },
+    "d2": {
+      "rowtype": "Table",
+      "columns": [
+        "3 items",
+        "Child Table"
+      ],
+      "isopen": true,
+      "parent": "root",
+      "position": "end",
+      "tags": "T",
+      "text": "Images",
+      "uid": "d2",
+      "value": "",
+      "type": "child",
+      "ref": ""
+    },
+    "f1": {
+      "rowtype": "file",
+      "columns": [
+        "On disk",
+        "TXT file"
+      ],
+      "isopen": false,
+      "parent": "d1",
+      "position": "end",
+      "tags": "f",
+      "text": "myResume.txt",
+      "uid": "f1",
+      "value": "",
+      "type": "txt",
+      "ref": "./path/to/file/myResume.txt"
+    },
+    "v1": {
+      "rowtype": "var",
+      "columns": [
+        "Greg",
+        "STR[4] var"
+      ],
+      "isopen": false,
+      "parent": "d1",
+      "position": "end",
+      "tags": "v",
+      "text": "myName",
+      "uid": "v1",
+      "value": "Greg",
+      "type": "str",
+      "ref": "nodes:v1:value"
+    },
+    "f2": {
+      "rowtype": "file",
+      "columns": [
+        "On disk",
+        "PDF file"
+      ],
+      "isopen": false,
+      "parent": "d1",
+      "position": "end",
+      "tags": "f",
+      "text": "bytes_file.pdf",
+      "uid": "f2",
+      "value": "",
+      "type": "pdf",
+      "ref": "./path/to/file/bytes_file.pdf"
+    },
+    "f3": {
+      "rowtype": "file",
+      "columns": [
+        "On disk",
+        "PNG file"
+      ],
+      "isopen": false,
+      "parent": "d2",
+      "position": "end",
+      "tags": "f",
+      "text": "photo1.png",
+      "uid": "f3",
+      "value": "",
+      "type": "png",
+      "ref": "./path/to/file/photo1.png"
+    },
+    "i1": {
+      "rowtype": "image",
+      "columns": [
+        "On disk",
+        "PNG image"
+      ],
+      "isopen": false,
+      "parent": "d2",
+      "position": "end",
+      "tags": "i",
+      "text": "photo2",
+      "uid": "i1",
+      "value": "",
+      "type": "png",
+      "ref": "tablename:uid"
+    },
+    "f4": {
+      "rowtype": "file",
+      "columns": [
+        "On disk",
+        "JPG file"
+      ],
+      "isopen": false,
+      "parent": "d2",
+      "position": "end",
+      "tags": "f",
+      "text": "photo3.jpg",
+      "uid": "f4",
+      "value": "",
+      "type": "jpg",
+      "ref": "./path/to/file/photo3.jpg"
+    }
+  },
+  "prefs": {
+    "colHeads": [
+      "Name",
+      "Value",
+      "Kind"
+    ],
+    "colMinWidths": [
+      160,
+      120,
+      100
+    ],
+    "colNames": [
+      "#0",
+      "#1",
+      "#2"
+    ],
+    "colStretch": [
+      false,
+      true,
+      false
+    ],
+    "colWidths": [
+      200,
+      250,
+      100
+    ],
+    "rootGeo": "+56+28",
+    "rootTitle": "Pysist {}",
+    "rowTypes": [
+      "Root",
+      "Table",
+      "Dir",
+      "file",
+      "text",
+      "var",
+      "image",
+      "bytes",
+      "script",
+      "code",
+      "none"
+    ],
+    "tagNames": [
+      "R",
+      "T",
+      "D",
+      "f",
+      "t",
+      "v",
+      "i",
+      "b",
+      "s",
+      "c",
+      "n"
+    ],
+    "tagBg": [
+      "#DDB3B3",
+      "#F0CFCF",
+      "#F0CFCF",
+      "#F8F8F8",
+      "#F8F8F8",
+      "#9EEEEB",
+      "#A5E0F5",
+      "#E2E389",
+      "#F8F8F8",
+      "#F8F8F8",
+      "#FFFFFF"
+    ],
+    "topNodeUid": "root",
+    "nodeKey": "nodes",
+    "nodeStoreName": "pysist.json",
+    "nodeStoreType": "json",
+    "fileFormat": 1.1
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "autoSaveInterval": 5,
+  "backupDirName": "./backups",
+  "backupExt": ".bak",
+  "dataDirName": "./data",
+  "dataKey": "data",
+  "dataStoreName": "root.sqlite",
+  "dataStoreType": "sqlite3",
+  "flAutoSave": false,
+  "flAutoSaveOnChange": true,
+  "flAutoSaveOnClose": true,
+  "flEnableAgents": true,
+  "flEnableWebServer": false,
+  "flErrorLogs": true,
+  "flFirstStartup": true,
+  "flNightlyBackups": false,
+  "flWebErrorLogs": true,
+  "flWebLogs": false,
+  "flWebStats": true,
+  "lastBackupCount": 0,
+  "lastBackupDate": "",
+  "lastBackupName": "",
+  "lastRoot": "root.json",
+  "lastRootPath": "./",
+  "lastRootType": "json",
+  "logDirName": "./logs",
+  "nodeKey": "nodes",
+  "openBrowserCommand": "firefox {}",
+  "prefsKey": "prefs",
+  "recentRoots": [
+    "./root.json"
+  ],
+  "webCGIext": ".pcgi",
+  "webHomePage": "index.html",
+  "webServerHostName": "localhost:8080",
+  "webServerPorts": [
+    8080,
+    8081
+  ],
+  "webSiteDirName": "./www"
+}

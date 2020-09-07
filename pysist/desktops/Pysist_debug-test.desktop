@@ -1,0 +1,28 @@
+[Desktop Entry]
+Name=Pysist_debug-test
+Version=v0.0.1
+GenericName=Pysist_debug-test
+Comment=Assists python developers with persistant storage of anything.
+Icon=/home/greg/pysist_master/pysist/Pyview/resources/icon_col.svg
+Path=/home/greg/pysist_master/pysist
+Exec=python3 /home/greg/pysist_master/pysist/Pysist.py -d -t
+Terminal=true
+Type=Application
+Categories=Development;Application;Python3;
+Keywords=Pysist;python;programming;assistant
+StartupWMClass=Window
+Actions=debug;test,debug-test;
+Name[en_AU]=Pysist_debug-test.desktop
+GenericName[en_AU]=Pysist_debug-test
+
+[Desktop Action debug]
+Name=Debug Mode
+Exec=python3 Pysist.py -d
+
+[Desktop Action test]
+Name=Testing Mode
+Exec=python3 Pysist.py -t
+
+[Desktop Action debug-test]
+Name=Debug and Test Mode
+Exec=python3 Pysist.py -d -t

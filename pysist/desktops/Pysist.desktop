@@ -1,0 +1,28 @@
+[Desktop Entry]
+Name=Pysist
+Version=v0.0.1
+Icon=/home/greg/pysist_master/pysist/Pyview/resources/pysist.svg
+Path=/home/greg/pysist_master/pysist
+Exec=python3 /home/greg/pysist_master/pysist/Pysist.py
+Terminal=false
+Type=Application
+GenericName=Pysist
+GenericName[en_AU]=Pysist
+Comment=Assists python developers with persistant storage of anything.
+Comment[en_AU]=Copyright 2020 Wharpusware <wharpus@gmail.com>
+Categories=Development;Application;Python3;
+Keywords=Pysist;python;development;programming;assistant
+StartupWMClass=Window
+Actions=debug;test,debug-test
+
+[Desktop Action debug]
+Name=Debug Mode
+Exec=python3 Pysist.py -d
+
+[Desktop Action test]
+Name=Testing Mode
+Exec=python3 Pysist.py -t
+
+[Desktop Action debug-test]
+Name=Debug and Test Mode
+Exec=python3 Pysist.py -d -t

@@ -1,1 +1,1 @@
-pysist_master
+Pysist

@@ -1,0 +1,29 @@
+[Desktop Entry]
+Name=Pysist_debug
+Version=v0.0.1
+Icon=/home/greg/pysist_master/pysist/Pyview/resources/pysist.svg
+Path=/home/greg/pysist_master/pysist
+Exec=python3 /home/greg/pysist_master/pysist/Pysist.py -d
+Terminal=true
+Type=Application
+GenericName=Pysist_debug
+GenericName[en_AU]=Pysist_debug
+Comment=Assists python developers with persistant storage of anything.
+Comment[en_AU]=Forces debug mode
+Categories=Development;Application;Python3;
+Keywords=Pysist;python;development;programming;assistant
+StartupWMClass=Window
+Actions=debug;test,debug-test
+Name[en_AU]=Pysist_debug.desktop
+
+[Desktop Action debug]
+Name=Debug Mode
+Exec=python3 Pysist.py -d
+
+[Desktop Action test]
+Name=Testing Mode
+Exec=python3 Pysist.py -t
+
+[Desktop Action debug-test]
+Name=Debug and Test Mode
+Exec=python3 Pysist.py -d -t
