@@ -46,6 +46,9 @@ askdict -- enforce a dict within a range from the user.
 askbytes -- enforce a bytes within a range from the user.
     RETURNS: The bytes input value, or None.
 
+askbytearray -- returns a bytearray within a range from the user.
+    RETURNS: The bytearray input value, or None.
+
 asknonetuple -- enforce a None value within a range from the user.
     RETURNS a 3 part tuple in the format: 
     (True, convertedInput, convertedType) if all went well
@@ -955,23 +958,23 @@ def multitypedialog(title, prompt, reqType, **kw):
         prompt  -- Is the request label text as string, ie 'Please enter your full name.'
         reqtype -- str, int, float, bool, list, tuple, dict, bytes, set, and None
         **kw    -- allowed kw arguments are:
-                   initialvalue = None  # initial value of input field (for all types)
-                   minvalue = None      # minimum value of input field (for numeric requests)
-                   maxvalue = None      # Maximum value of input field (for numeric requests)
-        NEW  -->   maxlength = None     # Maximum length (in chars/bytes) of input (for str and bytes)
-        NEW  -->   strictbool = True    # Default is True, only allow strict True or False inputs.
-                                        # If strictbool is False, also allow the conversion of 
+                   initialvalue = None  # Initial value of input field (for all types)
+        NEW  -->   minvalue = None      # Minimum value of input field (for numeric requests)
+        NEW  -->   maxvalue = None      # Maximum value of input field (for numeric requests)
+        NEW  -->   maxlength = None     # Maximum length (in chars/bytes) of input
+        NEW  -->   strict = True        # Default is True, only allow strict True or False inputs.
+                   (for bool)           # If strictbool is False, also allow the conversion of 
                                         # Yes, No, Y, N, 0, and 1 into True or False values (for bool types)
-        NEW  -->   strictnone = True    Default is True, only allow strict 'None' or 'none' inputs.
-                                        If strictnone is False, also allow the conversion of 
-                                        'null', 'nil' and '' into a None object
+        NEW  -->   strict = True        # Default is True, only allow strict 'None' or 'none' inputs.
+                   (for None)           # If strictnone is False, also allow the conversion of 
+                                        # 'null', 'nil' and '' into a None object
                    parent = None        # The tkinter root window class to open the dialog from, 
                                         # and return to after the dialog closes.
 
-    RETURNS: what is asked for
+    RETURNS: hopefully what you ask for
     
     The multitypedialog returns a 3 item tuple in the format: 
-        (True, False, or None, returnedObject, objectType).
+        (True False or None, returnedObject, objectType).
     Item one is True if the returned input IS the type requested.
     Item one is False if the returned input IS NOT the type requested.
     Item one is None if an error occured while processing the input. 
@@ -1051,12 +1054,13 @@ def askstring(title, prompt, **kw):
         title  -- Is the dialog windows title as string, ie 'String Input Required.'
         prompt -- Is the request label text as string, ie 'Please enter your full name.'
         **kw   -- Optional allowed kw arguments are:
-                  initval  =  None or str  Initial value of input field
-        NEW  -->  maxlen   =  None or int  Max input length allowed (in chars)
-        NEW  -->  minlen   =  None or int  Min input length required (in chars)
-        NEW  -->  illegals =  None or list  List of illegal characters
+                  initval   =  None or str    Initial value of input field
+        NEW  -->  maxlen    =  None or int    Max input length allowed (in chars)
+        NEW  -->  minlen    =  None or int    Min input length required (in chars)
+        NEW  -->  returnhex =  True or False  Return input string as a hexidecimal string
+        NEW  -->  illegals  =  None or list   List of illegal characters
 
-                   parent  = None       The tkinter root window class to open the dialog from, 
+                   parent   =  None       The tkinter root window class to open the dialog from, 
                                         and return to after the dialog closes.
     RETURNS: a string or None
     '''
@@ -1121,7 +1125,7 @@ def askemailaddress(title, prompt, **kw):
 
                    parent  = None       The tkinter root window class to open the dialog from, 
                                         and return to after the dialog closes.
-    RETURNS: a string or None
+    RETURNS: a email address string or None
     '''
     if 'subtype' not in kw.keys():
         kw['subtype'] = 'email'
@@ -1135,7 +1139,7 @@ def askemailaddress(title, prompt, **kw):
         return None
 
 def askinteger(title, prompt, **kw):
-    '''get an integer from the user
+    '''get an integer value from the user
     Drop in replacement for simpledialog.askinteger()
 
     ARGUMENTS:
@@ -1149,7 +1153,7 @@ def askinteger(title, prompt, **kw):
 
                    parent  = None       The tkinter root window class to open the dialog from, 
                                         and return to after the dialog closes.
-    RETURNS: a integer or None
+    RETURNS: a integer value or None
     '''
     result = multitypedialog(title, prompt, int, **kw)
     if result[0]:
@@ -1194,7 +1198,7 @@ def askbool(title, prompt, **kw):
                             into True or False values.
                    parent  = None       The tkinter root window class to open the dialog from, 
                                         and return to after the dialog closes.
-    RETURNS: a bool or None
+    RETURNS: a bool value or None
     '''
     result = multitypedialog(title, prompt, bool, **kw)
     if result[0]:
@@ -1211,14 +1215,14 @@ def asklist(title, prompt, **kw):
         prompt  -- Is the request label text as string, ie 'Please enter your full name.'
         **kw    -- Optional allowed kw arguments are:
                    initval = None or str  value of input field (depending on reqtype)
-                   minval  = None or int  min value of input field (for numeric requests)
-                   maxval  = None or int  Max value of input field (for numeric requests)
+        NEW  -->   minval  = None or int  min value of input field (for numeric requests)
+        NEW  -->   maxval  = None or int  Max value of input field (for numeric requests)
         NEW  -->   maxlen  = None or int  Max length of input allowed (for str and bytes)
         NEW  -->   minlen  = None or int  Min length of input required (for str and bytes)
 
                    parent  = None       The tkinter root window class to open the dialog from, 
                                         and return to after the dialog closes.
-    RETURNS: a list or None
+    RETURNS: a list value or None
     '''
     result = multitypedialog(title, prompt, list, **kw)
     if result[0]:
@@ -1235,14 +1239,14 @@ def asktuple(title, prompt, **kw):
         prompt  -- Is the request label text as string, ie 'Please enter your full name.'
         **kw    -- Optional allowed kw arguments are:
                    initval = None or str  value of input field (depending on reqtype)
-                   minval  = None or int  min value of input field (for numeric requests)
-                   maxval  = None or int  Max value of input field (for numeric requests)
+        NEW  -->   minval  = None or int  min value of input field (for numeric requests)
+        NEW  -->   maxval  = None or int  Max value of input field (for numeric requests)
         NEW  -->   maxlen  = None or int  Max length of input allowed (for str and bytes)
         NEW  -->   minlen  = None or int  Min length of input required (for str and bytes)
 
                    parent  = None       The tkinter root window class to open the dialog from, 
                                         and return to after the dialog closes.
-    RETURNS: a tuple or None
+    RETURNS: a tuple value or None
     '''
     result = multitypedialog(title, prompt, tuple, **kw)
     if result[0]:
@@ -1259,14 +1263,14 @@ def askset(title, prompt, **kw):
         prompt  -- Is the request label text as string, ie 'Please enter your full name.'
         **kw    -- Optional allowed kw arguments are:
                    initval = None or str  value of input field (depending on reqtype)
-                   minval  = None or int  min value of input field (for numeric requests)
-                   maxval  = None or int  Max value of input field (for numeric requests)
+        NEW  -->   minval  = None or int  min value of input field (for numeric requests)
+        NEW  -->   maxval  = None or int  Max value of input field (for numeric requests)
         NEW  -->   maxlen  = None or int  Max length of input allowed (for str and bytes)
         NEW  -->   minlen  = None or int  Min length of input required (for str and bytes)
 
                    parent  = None       The tkinter root window class to open the dialog from, 
                                         and return to after the dialog closes.
-    RETURNS: a set or None
+    RETURNS: a set value or None
     '''
     result = multitypedialog(title, prompt, set, **kw)
     if result[0]:
@@ -1275,7 +1279,7 @@ def askset(title, prompt, **kw):
         return None
 
 def askdict(title, prompt, **kw):
-    '''get a dict value from the user
+    '''get a dict object from the user
 
     ARGUMENTS:
         
@@ -1283,14 +1287,14 @@ def askdict(title, prompt, **kw):
         prompt  -- Is the request label text as string, ie 'Please enter your full name.'
         **kw    -- Optional allowed kw arguments are:
                    initval = None or str  value of input field (depending on reqtype)
-                   minval  = None or int  min value of input field (for numeric requests)
-                   maxval  = None or int  Max value of input field (for numeric requests)
+        NEW  -->   minval  = None or int  min value of input field (for numeric requests)
+        NEW  -->   maxval  = None or int  Max value of input field (for numeric requests)
         NEW  -->   maxlen  = None or int  Max length of input allowed (for str and bytes)
         NEW  -->   minlen  = None or int  Min length of input required (for str and bytes)
 
                    parent  = None       The tkinter root window class to open the dialog from, 
                                         and return to after the dialog closes.
-    RETURNS: a dict or None
+    RETURNS: a dict object or None
     '''
     result = multitypedialog(title, prompt, dict, **kw)
     if result[0]:
@@ -1299,7 +1303,7 @@ def askdict(title, prompt, **kw):
         return None
 
 def askbytes(title, prompt, **kw):
-    '''get a bytes value from the user
+    '''get a bytes object from the user
 
     ARGUMENTS:
         
@@ -1326,7 +1330,7 @@ def askbytes(title, prompt, **kw):
         return None
 
 def askbytearray(title, prompt, **kw):
-    '''get a bytearray value from the user
+    '''get a bytearray object from the user
 
     ARGUMENTS:
         
@@ -1341,7 +1345,7 @@ def askbytearray(title, prompt, **kw):
                    parent =  None           The tkinter root window class to open the dialog 
                                             from, and return to after the dialog closes.
 
-    RETURNS: a bytes object or None
+    RETURNS: a bytearray object or None
     '''
     if 'returnhex' in kw and kw['returnhex']:
         result = multitypedialog(title, prompt, str, **kw)
@@ -1389,8 +1393,8 @@ def askmultitype(title, prompt, reqType, **kw):
         reqtype -- str, int, float, bool, list, tuple, dict, bytes, set, and None
         **kw    -- allowed kw arguments are:
                    initialvalue = None  # value of input field (for all types)
-                   minvalue = None      # minimum value of input field (for numeric requests)
-                   maxvalue = None      # Maximum value of input field (for numeric requests)
+        NEW  -->   minvalue = None      # minimum value of input field (for numeric requests)
+        NEW  -->   maxvalue = None      # Maximum value of input field (for numeric requests)
         NEW  -->   maxlength = None     # Maximum length (in characters) of input (for str and bytes)
         NEW  -->   strictbool = True    # Default is True, only allow strict True or False inputs.
                                         # If strictbool is False, also allow the conversion of 
@@ -1420,8 +1424,8 @@ def askmultitypetuple(title, prompt, reqType, **kw):
         reqtype -- str, int, float, bool, list, tuple, set, dict, bytes, and None
         **kw    -- optional allowed kw arguments are:
                    initval = None or str  value of input field (depending on reqtype)
-                   minval  = None or int  min value of input field (for numeric requests)
-                   maxval  = None or int  Max value of input field (for numeric requests)
+        NEW  -->   minval  = None or int  min value of input field (for numeric requests)
+        NEW  -->   maxval  = None or int  Max value of input field (for numeric requests)
         NEW  -->   maxlen  = None or int  Max length of input allowed (for str and bytes)
         NEW  -->   minlen  = None or int  Min length of input required (for str and bytes)
         
@@ -1447,6 +1451,7 @@ def askmultitypetuple(title, prompt, reqType, **kw):
 
 
 if __name__ == "__main__":
+
     def test():
         root = Tk()
         def doit(root=root):
@@ -1460,27 +1465,27 @@ if __name__ == "__main__":
                          default=0,
                          cancel=2,
                          title="onedialog")
-            # master, text='', buttons=[], default=None, 
-            #    cancel=None, title=None, class_=None
+                         # master, text='', buttons=[], default=None, 
+                         # cancel=None, title=None, class_=None
             
             print(d.go())
             
-            # ~ logger.info(askstring("String", "Enter a string", 
-                            # ~ initval='Hollow',
-                            # ~ minlen=1, 
-                            # ~ maxlen=10,
-                            # ~ parent=root))
-            # ~ print()
-            # ~ logger.info(askpassword("Password", "Enter your password", 
-                            # ~ initval='Hollow World',
-                            # ~ show='*',
-                            # ~ minlen=8,
-                            # ~ maxlen=15,
-                            # ~ mincap=1
-                            # ~ minnum=1
-                            # ~ logval=False,
-                            # ~ returnhex=True,
-                            # ~ parent=root))
+            logger.info(askstring("String", "Enter a string", 
+                            initval='Hollow',
+                            minlen=1, 
+                            maxlen=10,
+                            parent=root))
+            print()
+            logger.info(askpassword("Password", "Enter your password", 
+                            initval='Hollow World',
+                            show='*',
+                            minlen=8,
+                            maxlen=15,
+                            mincap=1,
+                            minnum=1,
+                            logval=False,
+                            returnhex=True,
+                            parent=root))
             print()
             logger.info(askemailaddress("Password", "Enter your password", 
                             initval='playb4play@yahoo.com.au',
@@ -1488,78 +1493,78 @@ if __name__ == "__main__":
                             maxlen=40,
                             illegals=[' ', '='],
                             parent=root))
-            # ~ print()
-            # ~ logger.info(askbytes("String to bytes", "Enter a string", 
-                            # ~ initval='Hollow World',
-                            # ~ minlen=1,
-                            # ~ maxlen=15,
-                            # ~ returnhex=False,
-                            # ~ parent=root))
-            # ~ print()
-            # ~ logger.info(askbytearray("String to bytearray", "Enter a string", 
-                            # ~ initval='Hollow World',
-                            # ~ minlen=1,
-                            # ~ maxlen=15,
-                            # ~ returnhex=False,
-                            # ~ parent=root))
-            # ~ print()
-            # ~ logger.info(askinteger("Integer", "Enter a Integer", 
-                            # ~ initval=-45, 
-                            # ~ minval=-50, 
-                            # ~ maxval=50,
-                            # ~ parent=root))
-            # ~ print()
-            # ~ logger.info(askfloat("Float", "Enter a float",
-                            # ~ initval=00041.9785, 
-                            # ~ minval=0.0, 
-                            # ~ maxval=50.0,
-                            # ~ parent=root))
-            # ~ print()
-            # ~ logger.info(askbool("Bool", "Enter a bool", 
-                            # ~ initval='1', 
-                            # ~ strict=False,
-                            # ~ parent=root))
-            # ~ print()
-            # ~ logger.info(asklist("List", "Enter a list", 
-                            # ~ initval="['Hollow', 'World']",
-                            # ~ parent=root))
-            # ~ print()
-            # ~ logger.info(asknonetuple("None", "Enter a 'None' value", 
-                            # ~ initval='null', 
-                            # ~ strict=False,
-                            # ~ parent=root))
-            # ~ print()
-            # ~ logger.info(askmultitype("Password", "Enter your password", str, 
-                            # ~ subtype='pw', # force the password sub process
-                            # ~ show='*', # Show a '*' instead of each input char
-                            # ~ initval='Hollow World', # initial input string value
-                            # ~ minlen=8, # Obvious
-                            # ~ maxlen=15, # Obvious
-                            # ~ mincap=1
-                            # ~ minnum=1
-                            # ~ logval=False, # don't show password in the log
-                            # ~ returnhex=True, # Return input as a hex string
-                            # ~ illegals=[' ', '='], # illegal password characters
-                            # ~ parent=root))
-            # ~ print()
-            # ~ logger.info(askmultitypetuple("List", "Enter a List", list, 
-                            # ~ initval="['Hollow', 'World']",
-                            # ~ parent=root))
-            # ~ print()
-            # ~ logger.info(askmultitypetuple("Dictionary", "Enter a dict", dict, 
-                            # ~ initval="{'Hollow': 'World'}",
-                            # ~ parent=root))
-            # ~ print()
-            # ~ logger.info(askmultitypetuple("Set", "Enter a set", set, 
-                            # ~ initval="{'Hollow', 'World'}",
-                            # ~ parent=root))
-            # ~ try:
-                # ~ print()
-                # ~ logger.info(askmultitypetuple("Error", "Forcing Error", frozenset, 
-                            # ~ initval="{'Hollow', 'World'}",
-                            # ~ parent=root))
-            # ~ except (NameError):
-                # ~ logger.exception("Illegal type request.")
+            print()
+            logger.info(askbytes("String to bytes", "Enter a string", 
+                            initval='Hollow World',
+                            minlen=1,
+                            maxlen=15,
+                            returnhex=False,
+                            parent=root))
+            print()
+            logger.info(askbytearray("String to bytearray", "Enter a string", 
+                            initval='Hollow World',
+                            minlen=1,
+                            maxlen=15,
+                            returnhex=False,
+                            parent=root))
+            print()
+            logger.info(askinteger("Integer", "Enter a Integer", 
+                            initval=-45, 
+                            minval=-50, 
+                            maxval=50,
+                            parent=root))
+            print()
+            logger.info(askfloat("Float", "Enter a float",
+                            initval=00041.9785, 
+                            minval=0.0, 
+                            maxval=50.0,
+                            parent=root))
+            print()
+            logger.info(askbool("Bool", "Enter a bool", 
+                            initval='1', 
+                            strict=False,
+                            parent=root))
+            print()
+            logger.info(asklist("List", "Enter a list", 
+                            initval="['Hollow', 'World']",
+                            parent=root))
+            print()
+            logger.info(asknonetuple("None", "Enter a 'None' value", 
+                            initval='null', 
+                            strict=False,
+                            parent=root))
+            print()
+            logger.info(askmultitype("Password", "Enter your password", str, 
+                            subtype='pw', # force the password sub process
+                            show='*', # Show a '*' instead of each input char
+                            initval='Hollow World', # initial input string value
+                            minlen=8, # Minimum length of input required
+                            maxlen=15, # maximum length of input allowed
+                            mincap=1, # Minimum number of capital letters required
+                            minnum=1, # Minimum number of numbers  required
+                            logval=False, # don't show password in the onedialog log
+                            returnhex=True, # Return input string as a hex string
+                            illegals=[' ', '='], # illegal chars or strings in input
+                            parent=root))
+            print()
+            logger.info(askmultitypetuple("List", "Enter a List", list, 
+                            initval="['Hollow', 'World']",
+                            parent=root))
+            print()
+            logger.info(askmultitypetuple("Dictionary", "Enter a dict", dict, 
+                            initval="{'Hollow': 'World'}",
+                            parent=root))
+            print()
+            logger.info(askmultitypetuple("Set", "Enter a set", set, 
+                            initval="{'Hollow', 'World'}",
+                            parent=root))
+            try:
+                print()
+                logger.info(askmultitypetuple("Error", "Forcing Error", frozenset, 
+                            initval="{'Hollow', 'World'}",
+                            parent=root))
+            except (NameError):
+                logger.exception("Illegal type request.")
 
         t = Button(root, text='Test', command=doit)
         t.pack()
