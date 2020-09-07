@@ -42,7 +42,7 @@ if __name__ == "__main__":
                             parent=root))
             print()
             logger.info(askemailaddress("Password", "Enter your password", 
-                            initval='playb4play@yahoo.com.au',
+                            initval='your.name@yahoo.com.au',
                             minlen=8,
                             maxlen=40,
                             illegals=[' ', '='],
