@@ -22,9 +22,9 @@ except ImportError as err:
 from tkinter import ttk
 from tkinter import messagebox
 from tkinter import filedialog
-from tkinter import simpledialog
 from tkinter.colorchooser import askcolor
 from tkfilebrowser import askopendirname, askopenfilename, asksaveasfilename
+from onedialog import *
 
 import time
 import json
@@ -49,7 +49,7 @@ class B:
     USER_NAME = os.getlogin()
     USER_HOME_PATH = os.path.expanduser("~")
     print("Welcome to '{}' v{}".format(_APP_NAME, VERSION))
-    print("Designed and created by Wharpus Ware <wharpus@gmail.com>")
+    print("Designed and created by The Flying Wharpus <wharpus@gmail.com>")
     print("{} is located in {}".format(_APP_NAME, CWD))
     print()
     

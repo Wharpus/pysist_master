@@ -11,43 +11,82 @@
 # fredrik@pythonware.com
 # http://www.pythonware.com
 #
-"""onedialog enforces 10 different input types.
+"""pysist.onedialog enforces a multitude of different input types.
 
-It contains the following public objects:
+Onedialog contains the following public objects:
+The onedialog is a drop-in replacement for tkinter.simpledialog
 
-onedialog class -- is a drop-in replacement for simpledialog
+_QueryString and_QueryDialog contains the all of the functionality 
+behind each multitypedialog call.
 
-multitypedialog -- is the main object called by all of the dialogs.
+multitypedialog -- is the object called by all of the lesser dialogs 
+and can be called directly if you wish to make your own custom dialog.
 
-askstring -- get a length limited enforced string from the user.
-    RETURNS: The string input value, or None.
+askpassword -- get a length limited enforced string from the user.
+The password input value by default is not shown in the logs.
+It checks input for illegal characters or strings, which can be 
+overridden by supplying your own list of characters or strings.
+It can also return the input converted to a hexadecimal string.
+    RETURNS: A string object, or None.
+
+askemailaddress -- get a length limited enforced string from the user.
+The input value can also be forced to not log the input value.
+It checks input for illegal characters and strings using a regex, 
+which can also be overridden by supplying your own re.match raw string.
+It can also return the input converted to a hexadecimal string.
+    RETURNS: A string object, or None.
+
+askstring -- get a input string from the user.
+It can enforce a length limited input.
+It can check for input for illegal characters and strings.
+It can also return the input converted to a hexadecimal string.
+    RETURNS: A string object, or None.
 
 askinteger -- enforce a integer within a range from the user.
-    RETURNS: The integer input value, or None.
+    RETURNS: A integer object, or None.
 
 askfloat -- enforce a float within a range from the user.
-    RETURNS: The float input value, or None.
+    RETURNS: A float object, or None.
 
-askbool -- enforce a bool (strict or rational) from the user.
-    RETURNS: The boolean input value, or None.
+askbool -- enforce a bool (either strict or rational) from the user.
+Defaults to strict. To allow rational bool input, supply a strict=False
+    RETURNS: A bool object (True of False), or None.
 
-asklist -- enforce a list within a range from the user.
-    RETURNS: The list input value, or None.
+asklist -- get a valid list input from the user.
+It can enforce min and max items within the list.
+It can enforce the types of items allowed within the list by supplying 
+a list of allowed types. ie allow=[str, int, float, bool]
+    RETURNS: A list object, or None.
 
 asktuple -- enforce a tuple within a range from the user.
-    RETURNS: The tuple input value, or None.
+It can enforce min and max items within the list.
+It can enforce the types of items allowed within the list by supplying 
+a list of allowed types. ie allow=[str, int, float, bool]
+    RETURNS: A tuple object, or None.
 
 askset -- enforce a set within a range from the user.
-    RETURNS: The set input value, or None.
+It can enforce min and max items within the list.
+It can enforce the types of items allowed within the list by supplying 
+a list of allowed types. ie allow=[str, int, float, bool]
+    RETURNS: A set object, or None.
 
 askdict -- enforce a dict within a range from the user.
-    RETURNS: The dict input value, or None.
+It can enforce min and max items within the list.
+It can enforce the types of items allowed within the list by supplying 
+a list of allowed types. ie allow=[str, int, float, bool]
+    RETURNS: A dict object, or None.
 
-askbytes -- enforce a bytes within a range from the user.
-    RETURNS: The bytes input value, or None.
+askbytes -- get input from the user and return a bytes object.
+It can enforce a length limited input.
+It can check for input for illegal characters and strings.
+It can also return the input converted to a hexadecimal string.
+    RETURNS: A bytes object, or None.
 
-askbytearray -- returns a bytearray within a range from the user.
-    RETURNS: The bytearray input value, or None.
+askbytearray -- get input from the user and return a bytearray object.
+It can enforce a length limited input.
+It can check for input for illegal characters and strings.
+It can also return the input converted to a hexadecimal string.
+    RETURNS: A bytearray object, or None.
 
 asknonetuple -- enforce a None value within a range from the user.
     RETURNS a 3 part tuple in the format: 
@@ -55,11 +94,11 @@ asknonetuple -- enforce a None value within a range from the user.
     (False, unconvertedInput, unconvertedType) if could not convert
     (None, unconvertedInput, unconvertedType, errorString) if an error occurred
 
-askmultitype -- get any of the 10 allowed types.
-    RETURNS: The input value of requested type, or None.
+askmultitype -- get a variety of supported valid python types.
+    RETURNS: An object of requested type, or None.
 
-askmultitypetuple -- get any of the 10 allowed types.
-    RETURNS a 3 part tuple in the format: 
+askmultitypetuple -- get a variety of supported valid python types.
+    RETURNS a 3 or 4 part tuple in the format: 
     (True, convertedInput, convertedType) if all went well
     (False, unconvertedInput, unconvertedType) if could not convert
     (None, unconvertedInput, unconvertedType, errorString) if an error occurred
@@ -817,10 +856,6 @@ class _QueryDialog(Dialog):
         
         result = bytes(result, 'utf-8')
         
-        # ~ if self.returnhex == True:
-            # ~ result = result.hex()
-            # ~ self.reqType = str
-
         self.result = result
         return 1
 
@@ -847,10 +882,6 @@ class _QueryDialog(Dialog):
         
         result = bytearray(result, 'utf-8')
         
-        # ~ if self.returnhex == True:
-            # ~ result = result.hex()
-            # ~ self.reqType = str
-
         self.result = result
         return 1
 
@@ -1560,11 +1591,11 @@ if __name__ == "__main__":
                             parent=root))
             try:
                 print()
-                logger.info(askmultitypetuple("Error", "Forcing Error", frozenset, 
-                            initval="{'Hollow', 'World'}",
+                logger.info(askmultitypetuple("Testing Forced Error", "Forcing Error", frozenset, 
+                            initval="Hollow, World",
                             parent=root))
             except (NameError):
-                logger.exception("Illegal type request.")
+                logger.exception("Unsupported request type.")
 
         t = Button(root, text='Test', command=doit)
         t.pack()
