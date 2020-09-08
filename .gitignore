@@ -122,3 +122,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+pysist_master_git.geanywb
+
+pysist_master_git.geany
+
+*.geanywb
