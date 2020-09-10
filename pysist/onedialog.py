@@ -150,7 +150,7 @@ def init_logging(level='warning'):
 # Get the logger:
 # valid levels: 'debug', 'info', 'warning', 'error', 'critical'
 # default level: 'warning'
-logger = init_logging('info')
+logger = init_logging('debug')
 # start logging:
 logger.warning("Welcome to the 'onedialog' log")
 
@@ -390,29 +390,33 @@ class _QueryDialog(Dialog):
 
     def __init__(self, title, prompt, reqType,
                 subtype = None,
-                initval = None,
+                initial = None,
                 minval = None,
                 maxval = None,
                 maxlen = None,
                 minlen = None,
+                minitems = None,
+                maxitems = None,
                 mincap = None,
+                minlow = None,
                 minnum = None,
+                minsym = None,
                 strict = True,
                 logval = True,
-                returnhex = False,
-                illegals = ['=', 'eval', 'exec', '__'],  # list of illegals
-                walkinters = False,  # walk contents checking fields
+                gethex = False,
+                illegals = None,     # ['=', 'eval', 'exec', '__'],
+                allowed = None,
+                regex = None,        # r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$",
+                walk = False,  # walk contents checking fields
+                types = None,
                 parent = None):
 
-        logger.debug('{}: {}({})'.format(self.__class__.__name__, 
-                            sys._getframe().f_code.co_name, 
-                            "'{}', {}, {}, '{}', {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}"
-                                                        .format(title, prompt, reqType, 
-                                                        initval, minval, maxval,
-                                                        maxlen, minlen, mincap, minnum,
-                                                        subtype, strict, logval,
-                                                        returnhex, illegals,
-                                                        walkinters, parent)))
+        logger.debug('{}: {}({})'
+            .format(self.__class__.__name__, sys._getframe().f_code.co_name, 
+            "'{}', {}, {}, '{}', {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}"
+                .format(title, prompt, reqType, initial, minval, maxval, maxlen, 
+                        minlen, mincap, minnum, minsym, subtype, strict, logval, gethex, 
+                        illegals, regex, walk, parent)))
         if not parent:
             parent = tkinter._default_root
 
@@ -441,16 +445,23 @@ class _QueryDialog(Dialog):
         self.maxval = maxval
         self.maxlen = maxlen
         self.minlen = minlen
+        self.maxitems = maxitems
+        self.minitems = minitems
         self.mincap = mincap
+        self.minlow = minlow
         self.minnum = minnum
+        self.minsym = minsym
         self.strict = strict
         self.subtype = subtype
         self.logval = logval
-        self.returnhex = returnhex
+        self.gethex = gethex
         self.illegals = illegals
-        self.walkinters = walkinters
+        self.allowed = allowed
+        self.regex = regex
+        self.walk = walk
+        self.types = types
         
-        self.initval = initval
+        self.initial = initial
         
         Dialog.__init__(self, parent, title)
 
@@ -466,8 +477,8 @@ class _QueryDialog(Dialog):
         self.entry = Entry(master, name="entry")
         self.entry.grid(row=1, padx=5, sticky=W+E)
 
-        if self.initval is not None:
-            self.entry.insert(0, str(self.initval))
+        if self.initial is not None:
+            self.entry.insert(0, str(self.initial))
             self.entry.select_range(0, END)
 
         return self.entry
@@ -544,20 +555,12 @@ class _QueryDialog(Dialog):
         self.result = result
         return 1
 
-    # Validation helper functions
-    
-    def _validate_str(self, result):
-        if self.maxlen is not None and len(result) > int(self.maxlen):
-            logger.debug("Exceeded max length of (%s) chars.", self.maxlen)
-            messagebox.showwarning(
-                "Max length error",
-                "Exceeded max length of({}) chars.\nPlease try again."
-                    .format(str(self.maxlen)),
-                parent = self
-            )
-            return 0
+
+    # Functions used by validation Functions to check input
+    def _check_len(self, testobj):
+        logger.debug("Doing _check_len().")
         
-        if self.minlen is not None and len(result) < int(self.minlen):
+        if self.minlen is not None and len(testobj) < int(self.minlen):
             logger.debug("Minumum length of ({}) not reached.", self.minlen)
             messagebox.showwarning(
                 "Min length error",
@@ -565,9 +568,246 @@ class _QueryDialog(Dialog):
                     .format(str(self.minlen)),
                 parent = self
             )
+            return False
+        
+        if self.maxlen is not None and len(testobj) > int(self.maxlen):
+            logger.debug("Exceeded max length of (%s) chars.", self.maxlen)
+            messagebox.showwarning(
+                "Max length error",
+                "Exceeded max length of({}) chars.\nPlease try again."
+                    .format(str(self.maxlen)),
+                parent = self
+            )
+            return False
+        logger.debug("_check_len() passed.")
+        return True
+
+    def _check_val(self, testobj):
+        logger.debug("Doing _check_val().")
+        
+        if self.minval is not None and self.maxval is not None:
+            if testobj < self.reqType(self.minval) or testobj > self.reqType(self.maxval):
+                logger.debug("Enter Value between %s and %s... Please try again.", 
+                            self.minval, self.maxval)
+                messagebox.showwarning(
+                    "Value out of range",
+                    "Enter Value between {} and {}.\nPlease try again."
+                        .format(self.minval, self.maxval),
+                    parent = self
+                )
+                return False
+        
+        if self.minval is not None and testobj < self.reqType(self.minval):
+            logger.debug("The minimum value is (%s)... Please try again.", 
+                        self.minval)
+            messagebox.showwarning(
+                "Value too small",
+                "The minimum value is ({})...\nPlease try again."
+                    .format(str(self.minval)),
+                parent = self
+            )
+            return False
+
+        if self.maxval is not None and testobj > self.reqType(self.maxval):
+            logger.debug("The maximum value is (%s)... Please try again.", 
+                        self.maxval)
+            messagebox.showwarning(
+                "Value too large",
+                "The allowed maximum value is ({})...\nPlease try again."
+                    .format(str(self.maxval)),
+                parent = self
+            )
+            return False
+
+        logger.debug("_check_val() passed.")
+        return True
+
+    def _check_items(self, testobj):
+        
+        if self.minitems is None and self.maxitems is None:
+            return True
+            
+        logger.debug("Doing _check_items().")
+        
+        if type(testobj) not in ['list', 'tuple', 'dict', 'set']:
+            logger.debug("testobj type %s is not supported.", type(testobj))
+            return True
+        
+        if self.minitems is not None and len(testobj) < int(self.minitems):
+            logger.debug("Minimum number items of (%s) not reached.", self.minitems)
+            messagebox.showwarning(
+                "Min items error",
+                "Minimum number items of ({}) not reached.\nPlease try again."
+                    .format(str(self.minitems)),
+                parent = self
+            )
+            return False
+                
+        if self.maxitems is not None and len(testobj) > int(self.maxitems):
+            logger.debug("Exceeded max number of (%s) items.", self.maxitems)
+            messagebox.showwarning(
+                "Max items error",
+                "Exceeded max number of ({}) item.\nPlease try again."
+                    .format(str(self.maxitems)),
+                parent = self
+            )
+            return False
+        logger.debug("_check_items() passed.")
+        return True
+
+    def _check_equals(self, testobj):
+        logger.debug("Doing _check_equals().")
+        
+        illegal = False
+        illegalcnt = 0
+        
+        if not self.logval:
+            logger.debug("testobj: '********'")
+        else:
+            logger.debug("testobj: '%s'", testobj)
+            
+        if '=' in testobj:
+            logger.debug("Found a '=', so having a closer look...")
+            indexlist = [m.start() for m in re.finditer('=', testobj)]
+            if not self.logval:
+                logger.debug("index of '=': {}: '********'.")
+            else:
+                logger.debug("index of '=': {}: \"{}\".".format(str(indexlist), testobj))
+            # ie [0, 5, 6, 15] or -1
+            if indexlist != -1:
+                for x in range(len(indexlist)):
+                    index = indexlist[x]
+                    logger.debug('index: %s', index)
+                    if index+1 not in indexlist and index-1 not in indexlist:
+                        logger.debug("There is no '=' either side, so check more...")
+                        if index != 0 and testobj[index-1] not in ['=', '!', '<', '>']:
+                            logger.debug("There is no '=', '!', '<', or '>' before it, so is BAD.")
+                            # it's an illegal one
+                            illegal = True
+                            illegalcnt += 1
+                            logger.debug("Assignment operator found at position %s character %s.", index, index+1)
+                        elif index == 0:
+                            illegal = True
+                            illegalcnt += 1
+                            logger.debug("Assignment operator found at position %s character %s.", index, index+1)
+                        else:
+                            logger.debug("It has a '=', '!', '<', or '>' before it, so is OK.")
+                            
+                    # It's a comparison and is safe
+        if illegal:
+            logger.debug("Found %s assignment operators.", illegalcnt)
+            messagebox.showwarning(
+                "Illegal assignment error",
+                "Found ({}) illegal assignment operators.\nPlease try again."
+                    .format(str(illegalcnt)),
+                parent = self
+            )
+            return False
+        logger.debug("_check_equals() passed.")
+        return True
+
+    def _check_illegals(self, testobj):
+        
+        if self.illegals is None:
+            return True
+        
+        logger.debug("Doing _check_illegals().")
+        
+        illegal = False
+        illegalcnt = 0
+        #checklist = ['ast.', 'eval(', 'exec(', '__', 
+        #             'sys.exit(', 'os.', '.destroy(']
+        
+        checklist = self.illegals
+        for check in checklist:
+            if check in testobj:
+                illegal = True
+                illegalcnt += 1
+                logger.debug("Found illegal content '%s' found in string.", check)
+
+        if illegal:
+            logger.debug("Found %s illegal items.", illegalcnt)
+            messagebox.showwarning(
+                "Illegal Character error",
+                "Found ({}) illegal chars.\nPlease try again."
+                    .format(str(illegalcnt)),
+                parent = self
+            )
+            return False
+        
+        logger.debug("_check_illegals() passed.")
+        return True
+
+    def _check_regex(self, testobj, re_name='entry'):
+        
+        if self.regex is None:
+            return True
+        
+        logger.debug("Doing _check_regex().")
+
+        if self.regex:
+            restr = self.regex
+        else:
+            restr = r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$"
+        
+        if not re.match(restr, testobj):
+            logger.debug("'%s' is not a valid %s. Using regex: r%r ", testobj, re_name, restr)
+            messagebox.showwarning(
+                "Invalid Email",
+                "Regex says: '{}' is not a valid {}.\nPlease try again."
+                    .format(testobj, re_name),
+                parent = self
+            )
+            return False
+        logger.debug("_check_regex() passed.")
+        return True
+
+    # Validation helper functions
+    def _postvalidate(self, result): # returns converted and tested result or original result
+        if self.reqType not in [dict, list, tuple, set]:
+            self.result = result
+            return 1
+        resultType = type(result)
+        logger.debug("Doing _postvalidate(%s) for type %s.", result, resultType)
+        
+        if resultType != self.reqType:
+            # Try getting the literal evaluation to get the real type of inputStr
+            try:
+                convertedInput = literal_eval(result)
+            except (ValueError, SyntaxError, TypeError, OverflowError, AssertionError) as err:
+                if logval == True:
+                    e = "Postvalidate error converting '{}' to type {}".format(result, inputType)
+                else:
+                    e = "Postvalidate error converting '********' to type {}".format(inputType)
+                logger.exception(e)
+                messagebox.showwarning(
+                    "Error: invalid input",
+                    "Error: invalid input.\nPlease try again.",
+                    parent = self
+                )
+                return 0
+        
+        if not self._check_items(convertedInput): # returns false on fail
             return 0
         
-        if self.returnhex == True:
+        convertedType = type(convertedInput)
+        logger.debug("Finished _postvalidate(%s) is now type %s.", convertedInput, convertedType)
+        self.result = convertedInput
+        return 1
+
+
+    def _validate_str(self, result):
+
+        if not self._check_len(result): # check against minlen and maxlen
+            return 0
+        if not self._check_equals(result): # check for assignment operator
+            return 0
+        if not self._check_illegals(result): # check against illegals list
+            return 0
+        if not self._check_regex(result): # check against regex match
+            return 0
+                
+        if self.gethex == True:
             # string with encoding 'utf-8'
             result = bytearray(result, 'utf-8').hex()
 
@@ -575,27 +815,92 @@ class _QueryDialog(Dialog):
         return 1
 
     def _validate_pw(self, result):
-        if self.minlen is not None and len(result) < int(self.minlen):
-            logger.debug("Password length of (%s) not reached.", self.minlen)
-            messagebox.showwarning(
-                "Min length error",
-                "Minumum length of ({}) not reached.\nPlease try again."
-                    .format(str(self.minlen)),
-                parent = self
-            )
+
+        if not self._check_len(result): # returns false on fail
             return 0
 
-        if self.maxlen is not None and len(result) > int(self.maxlen):
-            logger.debug("Exceeded max length of (%s) chars.", self.maxlen)
-            messagebox.showwarning(
-                "Max length error",
-                "Exceeded max length of({}) chars.\nPlease try again."
-                    .format(str(self.maxlen)),
-                parent = self
-            )
+        if not self._check_equals(result): # returns false on fail
             return 0
+
+        if not self._check_illegals(result): # returns false on fail
+            return 0
+
+        # check lowercase count
+        if self.minlow is not None and int(self.minlow) > 0:
+            strlen = len(result)
+            lowcount = 0
+            for i in range(strlen):
+                if result[i].islower():
+                    lowcount += 1
+            if lowcount < int(self.mincap):
+                logger.debug("Minumum of (%s) lowercase not reached.", self.mincap)
+                messagebox.showwarning(
+                    "Min lowercase error",
+                    "Minumum of ({}) lowercase not reached.\nPlease try again."
+                        .format(str(self.mincap)),
+                    parent = self
+                )
+                return 0
+        # check uppercase count
+        if self.mincap is not None and int(self.mincap) > 0:
+            strlen = len(result)
+            capcount = 0
+            for i in range(strlen):
+                if result[i].isupper():
+                    capcount += 1
+            if capcount < int(self.mincap):
+                logger.debug("Minumum of (%s) capitals not reached.", self.mincap)
+                messagebox.showwarning(
+                    "Min capitals error",
+                    "Minumum of ({}) capitals not reached.\nPlease try again."
+                        .format(str(self.mincap)),
+                    parent = self
+                )
+                return 0
+        # check number count
+        if self.minnum is not None and int(self.minnum) > 0:
+            strlen = len(result)
+            numcount = 0
+            for i in range(strlen):
+                if result[i].isdigit():
+                    numcount += 1
+            if numcount < int(self.minnum):
+                logger.debug("Minumum of (%s) numbers not reached.", self.minnum)
+                messagebox.showwarning(
+                    "Min numbers error",
+                    "Minumum of ({}) numbers not reached.\nPlease try again."
+                        .format(str(self.minnum)),
+                    parent = self
+                )
+                return 0
+        # check symbol count
+        if self.minsym is not None and int(self.minsym) > 0:
+            strlen = len(result)
+            symcount = 0
+            for i in range(strlen):
+                if result[i].isalpha():
+                    continue
+                elif result[i].isdigit():
+                    continue
+                else:
+                    symcount += 1
+                
+            if symcount < int(self.minsym):
+                logger.debug("Minumum of (%s) symbols not reached.", self.minsym)
+                messagebox.showwarning(
+                    "Min symbols error",
+                    "Minumum of ({}) symbols not reached.\nPlease try again."
+                        .format(str(self.minsym)),
+                    parent = self
+                )
+                return 0
+
+        # ~ if not self._check_regex(result, 'password'): # returns false on fail
+            # ~ return 0
+
+        # return hex if asked
         
-        if self.returnhex == True:
+        if self.gethex == True:
             # string with encoding 'utf-8'
             result = bytearray(result, 'utf-8').hex()
 
@@ -603,36 +908,12 @@ class _QueryDialog(Dialog):
         return 1
 
     def _validate_email(self, result):
-        if self.minlen is not None and len(result) < int(self.minlen):
-            logger.debug("Minumum length of ({}) not reached.", self.minlen)
-            messagebox.showwarning(
-                "Min length error",
-                "Minumum length of ({}) not reached.\nPlease try again."
-                    .format(str(self.minlen)),
-                parent = self
-            )
+
+        if not self._check_len(result): # returns false on fail
             return 0
-        
-        if self.maxlen is not None and len(result) > int(self.maxlen):
-            logger.debug("Exceeded max length of (%s) chars.", self.maxlen)
-            messagebox.showwarning(
-                "Max length error",
-                "Exceeded max length of({}) chars.\nPlease try again."
-                    .format(str(self.maxlen)),
-                parent = self
-            )
+                    
+        if not self._check_regex(result, 'email address'): # check against regex match
             return 0
-            
-        if not re.match(r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$", result):
-            logger.debug("'%s' is not a valid password", result)
-            messagebox.showwarning(
-                "Invalid Password",
-                "'%s' is not a valid password.\nPlease try again."
-                    .format(result),
-                parent = self
-            )
-            return 0
-        
         
         self.result = result
         return 1
@@ -641,6 +922,16 @@ class _QueryDialog(Dialog):
         result = result.lstrip().rstrip().lstrip('0')
         if result == '':
             result = '0'
+
+        if not self._check_len(result): # check against minlen and maxlen
+            return 0
+        if not self._check_equals(result): # check for assignment operator
+            return 0
+        if not self._check_illegals(result): # check against illegals list
+            return 0
+        if not self._check_regex(result, 'integer'): # check against regex match
+            return 0
+        
         try:
             testresult = int(result)
         except (ValueError, SyntaxError, TypeError, OverflowError, AssertionError):
@@ -651,47 +942,24 @@ class _QueryDialog(Dialog):
                 parent = self
             )
             return 0
-        else:
-            if self.minval is not None and self.maxval is not None:
-                if testresult < int(self.minval) or testresult > int(self.maxval):
-                    logger.debug("Enter integer between %s and %s... Please try again.", 
-                                self.minval, self.maxval)
-                    messagebox.showwarning(
-                        "Integer out of range",
-                        "Enter integer between {} and {}.\nPlease try again."
-                            .format(self.minval, self.maxval),
-                        parent = self
-                    )
-                    return 0
-            
-            if self.minval is not None and testresult < int(self.minval):
-                logger.debug("The minimum value is (%s)... Please try again.", 
-                            self.minval)
-                messagebox.showwarning(
-                    "Value too small",
-                    "The minimum value is ({})...\nPlease try again."
-                        .format(str(self.minval)),
-                    parent = self
-                )
-                return 0
 
-            if self.maxval is not None and testresult > int(self.maxval):
-                logger.debug("The maximum value is (%s)... Please try again.", 
-                            self.maxval)
-                messagebox.showwarning(
-                    "Value too large",
-                    "The allowed maximum value is ({})...\nPlease try again."
-                        .format(str(self.maxval)),
-                    parent = self
-                )
-                return 0
-
-        self.result = result
+        if not self._check_val(testresult): # returns false on fail
+            return 0
+        
+        self.result = testresult
         return 1
 
     def _validate_float(self, result):
         if result[0] == '.':
             result = '0' + result
+        
+        if not self._check_len(result): # check against minlen and maxlen
+            return 0
+        if not self._check_equals(result): # check for assignment operator
+            return 0
+        if not self._check_illegals(result): # check against illegals list
+            return 0
+        
         try:
             testresult = float(result)
         except (ValueError, SyntaxError, TypeError, OverflowError, AssertionError):
@@ -702,47 +970,23 @@ class _QueryDialog(Dialog):
                 parent = self
             )
             return 0
-        else:
-            if self.minval is not None and self.maxval is not None:
-                if testresult < float(self.minval) or testresult > float(self.maxval):
-                    logger.debug("Enter decimal between %s and %s... Please try again.", 
-                                self.minval, self.maxval)
-                    messagebox.showwarning(
-                        "Value out of range",
-                        "Enter decimal in range ({}..{}).\nPlease try again."
-                            .format(str(float(self.minval)), str(float(self.maxval))),
-                        parent = self
-                    )
-                    return 0
-            
-            if self.minval is not None and testresult < float(self.minval):
-                logger.debug("The minimum value is (%s)... Please try again.", 
-                            self.minval)
-                messagebox.showwarning(
-                    "Value too small",
-                    "The minimum value is ({}).\nPlease try again."
-                        .format(str(float(self.minval))),
-                    parent = self
-                )
-                return 0
-
-            if self.maxval is not None and testresult > float(self.maxval):
-                logger.debug("The maximum value is (%s)... Please try again.", 
-                            self.maxval)
-                messagebox.showwarning(
-                    "Value too large",
-                    "Allowed maximum value is ({}).\nPlease try again."
-                        .format(str(float(self.maxval))),
-                    parent = self
-                )
-                return 0
         
-        self.result = result
+        if not self._check_val(testresult): # returns false on fail
+            return 0
+        
+        self.result = testresult
         return 1
 
     def _validate_bool(self, result):
         result = result.lstrip().rstrip()
         result = result.lower().capitalize()
+
+        if not self._check_len(result): # check against minlen and maxlen
+            return 0
+        if not self._check_equals(result): # check for assignment operator
+            return 0
+        if not self._check_illegals(result): # check against illegals list
+            return 0
         
         if self.strict:
             if result not in ['True', 'False']:
@@ -768,90 +1012,74 @@ class _QueryDialog(Dialog):
         # Allow various entries implying true and false
         impliedresult = result
         if impliedresult in ['True', 'Yes', 'Y', '1']:
-            result = 'True'
+            result = True
             logger.info("Assigned '{}' as: {}".format(str(impliedresult), str(result)))
         elif impliedresult in ['False', 'No', 'Y', '0']:
-            result = 'False'
+            result = False
             logger.info("Assigned '{}' as: {}".format(str(impliedresult), str(result)))
     
         self.result = result
         return 1
 
     def _validate_list(self, result):
-        if self.maxlen is not None and len(result) > int(self.maxlen):
-            logger.debug("Exceeded max length of (%s) chars.", self.maxlen)
-            messagebox.showwarning(
-                "Max length error",
-                "Exceeded max length ({}) chars.\nPlease try again."
-                    .format(str(self.maxlen)),
-                parent = self
-            )
+
+        if not self._check_len(result): # check against minlen and maxlen
+            return 0
+        if not self._check_equals(result): # check for assignment operator
+            return 0
+        if not self._check_illegals(result): # check against illegals list
             return 0
         
-        self.result = result
-        return 1
+        # passed all string tests passed
+        # so now do any postvalidate tests
+        return self._postvalidate(result) # sets self.result and returns 0 or 1
 
     def _validate_tuple(self, result):
-        if self.maxlen is not None and len(result) > int(self.maxlen):
-            logger.debug("Exceeded max length of (%s) chars.", self.maxlen)
-            messagebox.showwarning(
-                "Max length error",
-                "Exceeded max length ({}) chars.\nPlease try again."
-                    .format(str(self.maxlen)),
-                parent = self
-            )
+
+        if not self._check_len(result): # check against minlen and maxlen
+            return 0
+        if not self._check_equals(result): # check for assignment operator
+            return 0
+        if not self._check_illegals(result): # check against illegals list
             return 0
         
-        self.result = result
-        return 1
+        # passed all string tests passed
+        # so now do any postvalidate tests
+        return self._postvalidate(result) # returns 0 or 1
 
     def _validate_set(self, result):
-        if self.maxlen is not None and len(result) > int(self.maxlen):
-            logger.debug("Exceeded max length of (%s) chars.", self.maxlen)
-            messagebox.showwarning(
-                "Max length error",
-                "Exceeded max length ({}) chars.\nPlease try again."
-                    .format(str(self.maxlen)),
-                parent = self
-            )
+
+        if not self._check_len(result): # check against minlen and maxlen
+            return 0
+        if not self._check_equals(result): # check for assignment operator
+            return 0
+        if not self._check_illegals(result): # check against illegals list
             return 0
         
-        self.result = result
-        return 1
+        # passed all string tests passed
+        # so now do any postvalidate tests
+        return self._postvalidate(result) # returns 0 or 1
 
     def _validate_dict(self, result):
-        if self.maxlen is not None and len(result) > int(self.maxlen):
-            logger.debug("Exceeded max length of (%s) chars.", self.maxlen)
-            messagebox.showwarning(
-                "Max length error",
-                "Exceeded max length ({}) chars.\nPlease try again."
-                    .format(str(self.maxlen)),
-                parent = self
-            )
+
+        if not self._check_len(result): # check against minlen and maxlen
+            return 0
+        if not self._check_equals(result): # check for assignment operator
+            return 0
+        if not self._check_illegals(result): # check against illegals list
             return 0
         
-        self.result = result
-        return 1
+        # passed all string tests passed
+        # do _postvalidate()
+        return self._postvalidate(result) # returns 0 or 1
 
     def _validate_bytes(self, result):
-        if self.minlen is not None and len(result) < int(self.minlen):
-            logger.debug("Minimum length of (%s) not reached.", self.minlen)
-            messagebox.showwarning(
-                "Min length error",
-                "Minumum length of ({}) not reached.\nPlease try again."
-                    .format(str(self.minlen)),
-                parent = self
-            )
-            return 0
 
-        if self.maxlen is not None and len(result) > int(self.maxlen):
-            logger.debug("Exceeded max length of (%s) chars.", self.maxlen)
-            messagebox.showwarning(
-                "Max length error",
-                "Exceeded max length of({}) chars.\nPlease try again."
-                    .format(str(self.maxlen)),
-                parent = self
-            )
+        if not self._check_len(result): # check against minlen and maxlen
+            return 0
+        if not self._check_equals(result): # check for assignment operator
+            return 0
+        if not self._check_illegals(result): # check against illegals list
             return 0
         
         result = bytes(result, 'utf-8')
@@ -860,24 +1088,12 @@ class _QueryDialog(Dialog):
         return 1
 
     def _validate_bytearray(self, result):
-        if self.minlen is not None and len(result) < int(self.minlen):
-            logger.debug("Minimum length of (%s) not reached.", self.minlen)
-            messagebox.showwarning(
-                "Min length error",
-                "Minumum length of ({}) not reached.\nPlease try again."
-                    .format(str(self.minlen)),
-                parent = self
-            )
-            return 0
 
-        if self.maxlen is not None and len(result) > int(self.maxlen):
-            logger.debug("Exceeded max length of (%s) chars.", self.maxlen)
-            messagebox.showwarning(
-                "Max length error",
-                "Exceeded max length of({}) chars.\nPlease try again."
-                    .format(str(self.maxlen)),
-                parent = self
-            )
+        if not self._check_len(result): # check against minlen and maxlen
+            return 0
+        if not self._check_equals(result): # check for assignment operator
+            return 0
+        if not self._check_illegals(result): # check against illegals list
             return 0
         
         result = bytearray(result, 'utf-8')
@@ -888,6 +1104,13 @@ class _QueryDialog(Dialog):
     def _validate_none(self, result):
         result = result.lstrip().rstrip()
         result = result.lower().capitalize()
+        
+        if not self._check_len(result): # check against minlen and maxlen
+            return 0
+        if not self._check_equals(result): # check for assignment operator
+            return 0
+        if not self._check_illegals(result): # check against illegals list
+            return 0
         
         if self.strict:
             if result != 'None':
@@ -918,6 +1141,8 @@ class _QueryDialog(Dialog):
         self.result = result
         return 1
 
+
+"""Enforces the show='*' for password input."""
 class _QueryString(_QueryDialog):
     def __init__(self, *args, **kw):
         logger.debug('{}: {}({})'.format(self.__class__.__name__, 
@@ -939,69 +1164,49 @@ class _QueryString(_QueryDialog):
     def getresult(self):
         return self.entry.get()
 
-"""This is the main function that gets called by all the other dialogs"""
+
+"""This is the main function that gets called by the ask* dialogs"""
 def multitypedialog(title, prompt, reqType, **kw):
-
-    if 'logval' not in kw.keys(): 
-        kw['logval'] = True
-        logval = True
-    else:
-        logval = kw['logval']
-
-    logger.info('{}: {}({})'.format(onedialog.__class__.__name__, 
-                        sys._getframe().f_code.co_name, 
-                        "'{}', '{}', {}".format(title, prompt, reqType)))
-    '''onedialog is the "swiss army knife" of input dialogs. 
+    '''multitypedialog is the "swiss army knife" of input dialogs. 
     It shows a dialog window to get a specified input type from the user, 
     then it tries to return the user input in the requested type.
     If input can't be converted to the required type, it returns the original input string.
     Note: When requesting a str type, the string is returned unprocessed.
-    
-    askinteger("Integer", "Enter a Integer", initialvalue=5*9, minvalue=0, maxvalue=50))
-
-    askfloat("Float", "Enter a float (decimal)", initialvalue=00041.9785, minvalue=0.0, maxvalue=50.0))
-
-    askstring("String", "Enter a string", initialvalue='Hollow', maxlength=10))
-
-    askbool("Bool", "Enter a boolean", initialvalue='1', strictbool=False))
-
-    asklist("List", "Enter a list", initialvalue="['Hollow', 'World']"))
-
-    asktuple("Tuple", "Enter a tuple", initialvalue="('Hollow', 'World')"))
-
-    askdict("Dictionary", "Enter a dictionary", initialvalue="{'Hollow', 'World'}"))
-
-    askbytes("Bytes", "Enter a bytes string", initialvalue="b'Hollow World'", maxlength=10))
-
-    asknonetuple("None", "Enter a 'None' value", initialvalue="null", strictnone=False))
-
-    askmultitype("List", "Enter a list", list, initialvalue="['Hollow', 'World']"))
-
-    askmultitypetuple("Dictionary", "Enter a dict", dict, initialvalue="{'Hollow': 'World'}"))
-
     
     You can use just one dialog window to request 10 different python types, including: 
     str, int, float, bool, list, tuple, set, dict, bytes, and None.
     
     ARGUMENTS:
     
-        title   -- Is the dialog windows title as string, ie 'String Input Required.'
-        prompt  -- Is the request label text as string, ie 'Please enter your full name.'
-        reqtype -- str, int, float, bool, list, tuple, dict, bytes, set, and None
-        **kw    -- allowed kw arguments are:
-                   initialvalue = None  # Initial value of input field (for all types)
-        NEW  -->   minvalue = None      # Minimum value of input field (for numeric requests)
-        NEW  -->   maxvalue = None      # Maximum value of input field (for numeric requests)
-        NEW  -->   maxlength = None     # Maximum length (in chars/bytes) of input
-        NEW  -->   strict = True        # Default is True, only allow strict True or False inputs.
-                   (for bool)           # If strictbool is False, also allow the conversion of 
-                                        # Yes, No, Y, N, 0, and 1 into True or False values (for bool types)
-        NEW  -->   strict = True        # Default is True, only allow strict 'None' or 'none' inputs.
-                   (for None)           # If strictnone is False, also allow the conversion of 
-                                        # 'null', 'nil' and '' into a None object
-                   parent = None        # The tkinter root window class to open the dialog from, 
-                                        # and return to after the dialog closes.
-
+        title   - Is the dialog windows title as string, ie 'Enter a string.'
+        prompt  - Is the request label text as string, ie 'Please enter your full name.'
+        reqtype - str, int, float, bool, list, tuple, set, dict, bytes, bytearray, and None
+        
+        **kw    - optional allowed kw arguments are:
+                  initial  str or None  # Initial value of input field (for all types).
+        NEW  -->  subtype  'pw', 'email' or None  # enforce the subtype processing.
+        NEW  -->  show     '*' or None  # Show a '*' instead of each input char.
+        NEW  -->  minval   int or None  # Minimum value of input field (for numeric requests).
+        NEW  -->  maxval   int or None  # Maximum value of input field (for numeric requests).
+        NEW  -->  maxlen   int or None  # Maximum length (count of chars or collection items).
+        NEW  -->  minlen   int or None  # Maximum length (count of chars or collection items).
+        NEW  -->  mincap   int or None  # Minimum number of capital letters required (in passwords).
+        NEW  -->  minlow   int or None  # Minimum number of lowercase letters required (in passwords).
+        NEW  -->  minnum   int or None  # Minimum number of numbers required (in passwords).
+        NEW  -->  minsym   int or None  # Minimum number of symbols required (in passwords). 
+                                          Use illegals to specify and bad password chars.
+        NEW  -->  illegals list or None # List, tuple, or string containing all illegal chars.
+        NEW  -->  regex    raw or None  # A raw (r'') regex string to validate the input with.
+        NEW  -->  logval   bool or None # don't show value in the onedialog log. ie passwords.
+        NEW  -->  gethex   bool or None # Return input string as a hex string.
+        NEW  -->  strict   bool or None # Defaults True, enforce strict True or False inputs.
+                  (for bool)              If strict is False, also allow the conversion of 
+                                          Yes, No, Y, N, 0, and 1 into True or False values.
+        NEW  -->  strict   bool or None # Defaults True, enforce strict 'None' inputs.
+                  (for None)              If False, also allow the conversion of 
+                                          'null', 'nil' and '' into a None object.
+                  parent   root or None # The tkinter root window class link the dialog to, 
+                                          and return to after the dialog closes.
     RETURNS: hopefully what you ask for
     
     The multitypedialog returns a 3 item tuple in the format: 
@@ -1011,16 +1216,19 @@ def multitypedialog(title, prompt, reqType, **kw):
     Item one is None if an error occured while processing the input. 
     NOTE: If item one is None, the error string is added to the tuple as the 4th item
 
-    THE PROBLEM I found with simpledialog.askinteger()
-    If you input a integer like 0500 you would get the value 320 returned without showing 
-    any error at all. (WHY?) This happens when you enter any legal integer with one or more zeros 
-    before the 'real' integer number.
-    
-    THE SOLUTION:
-    I created this multi-input-type dialog window based upon simpledialog._QueryDialog()
+    I created this multi-input-type dialog based upon simpledialog._QueryDialog()
     and simpledialog._QueryString() which I have call onedialog.multitypedialog
     '''
-    
+    # 'logval' default is True unless otherwise supplied
+    if 'logval' not in kw.keys(): 
+        kw['logval'] = True
+        logval = True
+    else:
+        logval = kw['logval']
+
+    logger.info('{}: {}({})'.format(onedialog.__class__.__name__, 
+                        sys._getframe().f_code.co_name, 
+                        "'{}', '{}', {}".format(title, prompt, reqType)))
     # Initialize _QueryString() and get input
     d = _QueryString(title, prompt, reqType, **kw)
     inputStr = d.result
@@ -1039,18 +1247,27 @@ def multitypedialog(title, prompt, reqType, **kw):
             logger.debug("Output: '********' type: {}".format(inputType))
         return (True, inputStr, inputType)
 
+    # print("reqType: {}, inputType: {}".format(reqType, inputType))
+    
     # Don't evaluate the string as it is already the reqested type
-    
-    print("reqType: {}, inputType: {}".format(reqType, inputType))
-    
     if reqType == inputType: # Return it as a 3 part tuple
         if logval == True:
-            logger.info("Output: {} type: {}".format(inputStr, inputType))
+            logger.info("Input is request type, returning. Output: {} type: {}"
+                .format(inputStr, inputType))
         else:
-            logger.debug("Output: '********' type: {}".format(inputType))
+            logger.debug("Input is request type, returning. Output: '********' type: {}"
+                .format(inputType))
         return (True, inputStr, inputType)
     
-    # Try getting the literal evaluation to the real type of inputStr
+    # Input needs evaluating
+    if logval == True:
+        logger.info("Input reached literal eval. Output: {} type: {}"
+            .format(inputStr, inputType))
+    else:
+        logger.debug("Input reached literal eval. Output: '********' type: {}"
+            .format(inputType))
+    
+    # Try getting the literal evaluation to get the real type of inputStr
     try:
         convertedInput = literal_eval(inputStr)
     except (ValueError, SyntaxError, TypeError, OverflowError, AssertionError) as err:
@@ -1075,24 +1292,24 @@ def multitypedialog(title, prompt, reqType, **kw):
         logger.debug("Original output: '********' type: {}".format(inputType))
     return (False, inputStr, inputType)
 
-
 def askstring(title, prompt, **kw):
     '''get a string from the user
     Drop in replacement for simpledialog.askstring()
 
     ARGUMENTS:
 
-        title  -- Is the dialog windows title as string, ie 'String Input Required.'
-        prompt -- Is the request label text as string, ie 'Please enter your full name.'
-        **kw   -- Optional allowed kw arguments are:
-                  initval   =  None or str    Initial value of input field
-        NEW  -->  maxlen    =  None or int    Max input length allowed (in chars)
-        NEW  -->  minlen    =  None or int    Min input length required (in chars)
-        NEW  -->  returnhex =  True or False  Return input string as a hexidecimal string
-        NEW  -->  illegals  =  None or list   List of illegal characters
+        title  - Is the dialog windows title as string, ie 'String Input Required.'
+        prompt - Is the request label text as string, ie 'Please enter your full name.'
+        **kw   - Optional allowed kw arguments are:
+                 initial   None or str   Initial value of input field.
+        NEW -->  maxlen    None or int   Max input length allowed (in chars).
+        NEW -->  minlen    None or int   Min input length required (in chars).
+        NEW -->  gethex    Nono or bool  Return input string as a hexidecimal string.
+        NEW -->  illegals  None or list  List of illegal characters.
+        NEW -->  regex     None or raw   A raw (r'') regex string to validate the input with.
 
-                   parent   =  None       The tkinter root window class to open the dialog from, 
-                                        and return to after the dialog closes.
+                 parent    None or root  The tkinter root window class to open the dialog from, 
+                                         and return to after the dialog closes.
     RETURNS: a string or None
     '''
     result = multitypedialog(title, prompt, str, **kw)    
@@ -1106,21 +1323,24 @@ def askpassword(title, prompt, **kw):
 
     ARGUMENTS:
 
-        title  -- Is the dialog windows title as string, ie 'String Input Required.'
-        prompt -- Is the request label text as string, ie 'Please enter your full name.'
-        **kw   -- Optional allowed kw arguments are:
-                  initval   =   None or str    Initial value of input field
-        NEW  -->  maxlen    =   None or int    Maximum input length allowed
-        NEW  -->  minlen    =   None or int    Minimum input length required
-        NEW  -->  mincap    =   None or int    Minimum number of A-Z letters required
-        NEW  -->  minnum    =   None or int    Minimum number of 0-9 digits required
-        NEW  -->  minspec   =   None or int    Minimum number of Non alpha-numeric chars
-        NEW  -->  logval    =   False or True  Default is False, does not log input value
-        NEW  -->  returnhex =   False or True  Default is False, True returns result as hex
-        NEW  -->  illegals  =   None or list   Supply a list of illegal characters
+        title  - Is the dialog windows title as string, ie 'String Input Required.'
+        prompt - Is the request label text as string, ie 'Please enter your full name.'
+        **kw   - Optional allowed kw arguments are:
+                 initial  None or str    Initial value of input field.
+        NEW -->  maxlen   None or int    Maximum input length allowed.
+        NEW -->  minlen   None or int    Minimum input length required.
+        NEW -->  mincap   None or int    Minimum number of A-Z letters required.
+        NEW -->  minnum   None or int    Minimum number of 0-9 digits required.
+        NEW -->  minsym   None or int    Minimum number of Non alpha-numeric chars.
+        NEW -->  logval   bool or None   Don't show value in the log file. For passwords.
+        NEW -->  gethex   bool or None   Return input string as a hex string.
+        NEW -->  illegals list or None   List, tuple, or string containing all illegal chars.
+        NEW -->  regex    raw or None    A raw (r'') regex string to validate the input with.
+        NEW -->  logval   bool or None   Don't show value in the onedialog log. ie passwords.
+        NEW -->  gethex   bool or None   Return input string as a hex string.
 
-                   parent  = None       The tkinter root window class to open the dialog from, 
-                                        and return to after the dialog closes.
+                 parent   None or root   The tkinter root window class to open the dialog from, 
+                                         and return to after the dialog closes.
     RETURNS: a string or None
     '''
     
@@ -1130,8 +1350,8 @@ def askpassword(title, prompt, **kw):
         kw['show'] = '*'
     if 'logval' not in kw.keys(): 
         kw['logval'] = False
-    if 'illegals' not in kw.keys():
-        kw['illegals'] = [' ', '=']
+    # ~ if 'illegals' not in kw.keys():
+        # ~ kw['illegals'] = [' ', '=']
         
     result = multitypedialog(title, prompt, str, **kw)
     if result[0]:
@@ -1147,7 +1367,7 @@ def askemailaddress(title, prompt, **kw):
         title  -- Is the dialog windows title as string, ie 'String Input Required.'
         prompt -- Is the request label text as string, ie 'Please enter your full name.'
         **kw   -- Optional allowed kw arguments are:
-                  initval  =  None or str   Initial value of input field
+                  initial  =  None or str   Initial value of input field
         NEW  -->  maxlen   =  None or int   Maximum input length allowed
         NEW  -->  minlen   =  None or int   Minimum input length required
         NEW  -->  mincap   =  None or int   Minimum number of A-Z letters required
@@ -1160,8 +1380,8 @@ def askemailaddress(title, prompt, **kw):
     '''
     if 'subtype' not in kw.keys():
         kw['subtype'] = 'email'
-    if 'illegals' not in kw.keys():
-        kw['illegals'] = [' ', '=']
+    # ~ if 'illegals' not in kw.keys():
+        # ~ kw['illegals'] = [' ', '=']
         
     result = multitypedialog(title, prompt, str, **kw)
     if result[0]:
@@ -1178,7 +1398,7 @@ def askinteger(title, prompt, **kw):
         title  -- Is the dialog windows title as string, ie 'String Input Required.'
         prompt -- Is the request label text as string, ie 'Please enter your full name.'
         **kw   -- Optional allowed kw arguments are:
-                  initval =  None or str  Initial value of input field
+                  initial =  None or str  Initial value of input field
         NEW  -->  minval  =  None or int  Minimum value of input field
         NEW  -->  maxval  =  None or int  Maximum value of input field
 
@@ -1201,7 +1421,7 @@ def askfloat(title, prompt, **kw):
         title  -- Is the dialog windows title as string, ie 'String Input Required.'
         prompt -- Is the request label text as string, ie 'Please enter your full name.'
         **kw   -- Optional allowed kw arguments are:
-                  initval =  None or str  Initial value of input field
+                  initial =  None or str  Initial value of input field
         NEW  -->  minval  =  None or int  Minimum value of input field
         NEW  -->  maxval  =  None or int  Maximum value of input field
 
@@ -1223,7 +1443,7 @@ def askbool(title, prompt, **kw):
         title  -- Is the dialog windows title as string, ie 'String Input Required.'
         prompt -- Is the request label text as string, ie 'Please enter your full name.'
         **kw   -- Optional allowed kw arguments are:
-                  initval = None or str    Initial value of input field
+                  initial = None or str    Initial value of input field
         NEW  -->  strict  = True or False  Default is True, enforce strict boolean input.
                             If False, also allow the conversion of Yes, No, Y, N, 0, and 1
                             into True or False values.
@@ -1245,7 +1465,7 @@ def asklist(title, prompt, **kw):
         title   -- Is the dialog windows title as string, ie 'String Input Required.'
         prompt  -- Is the request label text as string, ie 'Please enter your full name.'
         **kw    -- Optional allowed kw arguments are:
-                   initval = None or str  value of input field (depending on reqtype)
+                   initial = None or str  value of input field (depending on reqtype)
         NEW  -->   minval  = None or int  min value of input field (for numeric requests)
         NEW  -->   maxval  = None or int  Max value of input field (for numeric requests)
         NEW  -->   maxlen  = None or int  Max length of input allowed (for str and bytes)
@@ -1269,7 +1489,7 @@ def asktuple(title, prompt, **kw):
         title   -- Is the dialog windows title as string, ie 'String Input Required.'
         prompt  -- Is the request label text as string, ie 'Please enter your full name.'
         **kw    -- Optional allowed kw arguments are:
-                   initval = None or str  value of input field (depending on reqtype)
+                   initial = None or str  value of input field (depending on reqtype)
         NEW  -->   minval  = None or int  min value of input field (for numeric requests)
         NEW  -->   maxval  = None or int  Max value of input field (for numeric requests)
         NEW  -->   maxlen  = None or int  Max length of input allowed (for str and bytes)
@@ -1293,7 +1513,7 @@ def askset(title, prompt, **kw):
         title   -- Is the dialog windows title as string, ie 'String Input Required.'
         prompt  -- Is the request label text as string, ie 'Please enter your full name.'
         **kw    -- Optional allowed kw arguments are:
-                   initval = None or str  value of input field (depending on reqtype)
+                   initial = None or str  value of input field (depending on reqtype)
         NEW  -->   minval  = None or int  min value of input field (for numeric requests)
         NEW  -->   maxval  = None or int  Max value of input field (for numeric requests)
         NEW  -->   maxlen  = None or int  Max length of input allowed (for str and bytes)
@@ -1317,7 +1537,7 @@ def askdict(title, prompt, **kw):
         title   -- Is the dialog windows title as string, ie 'String Input Required.'
         prompt  -- Is the request label text as string, ie 'Please enter your full name.'
         **kw    -- Optional allowed kw arguments are:
-                   initval = None or str  value of input field (depending on reqtype)
+                   initial = None or str  value of input field (depending on reqtype)
         NEW  -->   minval  = None or int  min value of input field (for numeric requests)
         NEW  -->   maxval  = None or int  Max value of input field (for numeric requests)
         NEW  -->   maxlen  = None or int  Max length of input allowed (for str and bytes)
@@ -1328,10 +1548,10 @@ def askdict(title, prompt, **kw):
     RETURNS: a dict object or None
     '''
     result = multitypedialog(title, prompt, dict, **kw)
-    if result[0]:
+    
+    if result[0]: #converted ok
         return result[1]
-    else:
-        return None
+    return None
 
 def askbytes(title, prompt, **kw):
     '''get a bytes object from the user
@@ -1341,7 +1561,7 @@ def askbytes(title, prompt, **kw):
         title   -- Is the dialog windows title as string, ie 'String Input Required.'
         prompt  -- Is the request label text as string, ie 'Please enter your full name.'
         **kw    -- Optional allowed kw arguments are:
-                   initval =  None or str   Value of input field (depending on reqtype)
+                   initial =  None or str   Value of input field (depending on reqtype)
         NEW  -->   maxlen  =  None or int   Max length of input allowed
         NEW  -->   minlen  =  None or int   Min length of input required
         NEW  -->   illegals = None or list  List of illegal characters
@@ -1351,7 +1571,7 @@ def askbytes(title, prompt, **kw):
 
     RETURNS: a bytes object or None
     '''
-    if 'returnhex' in kw and kw['returnhex']:
+    if 'gethex' in kw and kw['gethex']:
         result = multitypedialog(title, prompt, str, **kw)
     else:
         result = multitypedialog(title, prompt, bytes, **kw)
@@ -1368,7 +1588,7 @@ def askbytearray(title, prompt, **kw):
         title   -- Is the dialog windows title as string, ie 'String Input Required.'
         prompt  -- Is the request label text as string, ie 'Please enter your full name.'
         **kw    -- Optional allowed kw arguments are:
-                   initval =  None or str   Value of input field (depending on reqtype)
+                   initial =  None or str   Value of input field (depending on reqtype)
         NEW  -->   maxlen  =  None or int   Max length of input allowed
         NEW  -->   minlen  =  None or int   Min length of input required
         NEW  -->   illegals = None or list  List of illegal characters
@@ -1378,7 +1598,7 @@ def askbytearray(title, prompt, **kw):
 
     RETURNS: a bytearray object or None
     '''
-    if 'returnhex' in kw and kw['returnhex']:
+    if 'gethex' in kw and kw['gethex']:
         result = multitypedialog(title, prompt, str, **kw)
     else:
         result = multitypedialog(title, prompt, bytearray, **kw)
@@ -1397,7 +1617,7 @@ def asknonetuple(title, prompt, **kw):
         title   -- the dialog title
         prompt  -- the label text
         **kw    -- optional allowed kw arguments are:
-                   initval = None or str  value of input field (depending on reqtype)
+                   initial = None or str  value of input field (depending on reqtype)
         NEW  -->   maxlen  = None or int  Max length of input allowed (for str and bytes)
         NEW  -->   strict  = True or False  Default is True, enforce strict 'None' inputs.
                              If False, also allow the conversion of 'null', 'nil' and '' into
@@ -1418,24 +1638,36 @@ def askmultitype(title, prompt, reqType, **kw):
     '''get a wide variety of type types from the user
 
     ARGUMENTS:
+    
+        title   - Is the dialog windows title as string, ie 'Enter a string.'
+        prompt  - Is the request label text as string, ie 'Please enter your full name.'
+        reqtype - str, int, float, bool, list, tuple, set, dict, bytes, bytearray, and None
         
-        title   -- Is the dialog windows title as string, ie 'String Input Required.'
-        prompt  -- Is the request label text as string, ie 'Please enter your full name.'
-        reqtype -- str, int, float, bool, list, tuple, dict, bytes, set, and None
-        **kw    -- allowed kw arguments are:
-                   initialvalue = None  # value of input field (for all types)
-        NEW  -->   minvalue = None      # minimum value of input field (for numeric requests)
-        NEW  -->   maxvalue = None      # Maximum value of input field (for numeric requests)
-        NEW  -->   maxlength = None     # Maximum length (in characters) of input (for str and bytes)
-        NEW  -->   strictbool = True    # Default is True, only allow strict True or False inputs.
-                                        # If strictbool is False, also allow the conversion of 
-                                        # Yes, No, Y, N, 0, and 1 into True or False values (for bool types)
-        NEW  -->   strictnone = True    Default is True, only allow strict 'None' inputs.
-                                        If strictnone is False, also allow the conversion of 
-                                        'null', 'nil' and '' into a None type object
-                   parent = None        # The tkinter root window class to open the dialog from, 
-                                        # and return to after the dialog closes.
-
+        **kw    - optional allowed kw arguments are:
+                  initial  str or None  # Initial value of input field (for all types)
+        NEW  -->  subtype  'pw', 'email' or None  # enforce the subtype processing
+        NEW  -->  show     '*' or None  # Show a '*' instead of each input char
+        NEW  -->  minval   int or None  # Minimum value of input field (for numeric requests)
+        NEW  -->  maxval   int or None  # Maximum value of input field (for numeric requests)
+        NEW  -->  maxlen   int or None  # Maximum length (count of chars or collection items)
+        NEW  -->  minlen   int or None  # Maximum length (count of chars or collection items)
+        NEW  -->  mincap   int or None  # Minimum number of capital letters required
+        NEW  -->  minnum   int or None  # Minimum number of numbers required
+        NEW  -->  minsym   int or None  # Minimum number of symbols required. 
+                                          Use illegals to specify and bad password chars
+        NEW  -->  illegals list or None # List of illegal chars or strings in the input
+        NEW  -->  regex    raw or None  # A raw (r'') regex string to validate the input with.
+        NEW  -->  logval   bool or None # don't show value in the onedialog log. ie passwords
+        NEW  -->  gethex   bool or None # Return input string as a hex string
+        NEW  -->  strict   bool or None # Defaults True, enforce strict True or False inputs.
+                  (for bool)              If strict is False, also allow the conversion of 
+                                          Yes, No, Y, N, 0, and 1 into True or False values.
+        NEW  -->  strict   bool or None # Defaults True, enforce strict 'None' inputs.
+                  (for None)              If False, also allow the conversion of 
+                                          'null', 'nil' and '' into a None object.
+                  parent   root or None # The tkinter root window class link the dialog to, 
+                                          and return to after the dialog closes.
+        
     RETURNS: The input value of requested type, or None if it had a problem.
     '''
     result = multitypedialog(title, prompt, reqType, **kw)
@@ -1449,28 +1681,36 @@ def askmultitypetuple(title, prompt, reqType, **kw):
     '''ask for a wide variety of input types from the user
 
     ARGUMENTS:
+    
+        title   - Is the dialog windows title as string, ie 'Enter a string.'
+        prompt  - Is the request label text as string, ie 'Please enter your full name.'
+        reqtype - str, int, float, bool, list, tuple, set, dict, bytes, bytearray, and None
         
-        title   -- Is the dialog windows title as string, ie 'String Input Required.'
-        prompt  -- Is the request label text as string, ie 'Please enter your full name.'
-        reqtype -- str, int, float, bool, list, tuple, set, dict, bytes, and None
-        **kw    -- optional allowed kw arguments are:
-                   initval = None or str  value of input field (depending on reqtype)
-        NEW  -->   minval  = None or int  min value of input field (for numeric requests)
-        NEW  -->   maxval  = None or int  Max value of input field (for numeric requests)
-        NEW  -->   maxlen  = None or int  Max length of input allowed (for str and bytes)
-        NEW  -->   minlen  = None or int  Min length of input required (for str and bytes)
+        **kw    - optional allowed kw arguments are:
+                  initial  str or None  # Initial value of input field (for all types)
+        NEW  -->  subtype  'pw', 'email' or None  # enforce the subtype processing
+        NEW  -->  show     '*' or None  # Show a '*' instead of each input char
+        NEW  -->  minval   int or None  # Minimum value of input field (for numeric requests)
+        NEW  -->  maxval   int or None  # Maximum value of input field (for numeric requests)
+        NEW  -->  maxlen   int or None  # Maximum length (count of chars or collection items)
+        NEW  -->  minlen   int or None  # Maximum length (count of chars or collection items)
+        NEW  -->  mincap   int or None  # Minimum number of capital letters required
+        NEW  -->  minnum   int or None  # Minimum number of numbers required
+        NEW  -->  minsym   int or None  # Minimum number of symbols required. 
+                                          Use illegals to specify and bad password chars
+        NEW  -->  illegals list or None # List of illegal chars or strings in the input
+        NEW  -->  regex    raw or None  # A raw (r'') regex string to validate the input with.
+        NEW  -->  logval   bool or None # don't show value in the onedialog log. ie passwords
+        NEW  -->  gethex   bool or None # Return input string as a hex string
+        NEW  -->  strict   bool or None # Defaults True, enforce strict True or False inputs.
+                  (for bool)              If strict is False, also allow the conversion of 
+                                          Yes, No, Y, N, 0, and 1 into True or False values.
+        NEW  -->  strict   bool or None # Defaults True, enforce strict 'None' inputs.
+                  (for None)              If False, also allow the conversion of 
+                                          'null', 'nil' and '' into a None object.
+                  parent   root or None # The tkinter root window class link the dialog to, 
+                                          and return to after the dialog closes.
         
-        NEW  -->   strict  = True or False  Default is True, enforce strict True or False inputs.
-                   (in bool) If False, also allow the conversion of Yes, No, Y, N, 0, and 1 
-                   into True or False values.
-                             
-        NEW  -->   strict  = True or False  Default is True, enforce strict 'None' inputs.
-                   (in None) If False, also allow the conversion of 'null', 'nil' and '' 
-                   into a None type object.
-                             
-                   parent  = None       The tkinter root window class to open the dialog from, 
-                                        and return to after the dialog closes.
-
     RETURNS: a 3 part tuple: (True, convertedInput, convertedType) if converted OK, or
              a 3 part tuple: (False, originalInput, originalType) if not passed limitations, or
     ON ERROR: returns a 4 part tuple: (None, originalInput, originalType, errorString)
@@ -1480,17 +1720,16 @@ def askmultitypetuple(title, prompt, reqType, **kw):
     return result
 
 
-
 if __name__ == "__main__":
 
     def test():
         root = Tk()
         def doit(root=root):
             d = onedialog(root,
-                         text="This is a test dialog.  "
-                              "Would this have been an actual dialog, "
-                              "the buttons below would have been glowing "
-                              "in soft pink light.\n"
+                         text="This is onedialog. "
+                              "It is the swiss army knife of input dialogs, "
+                              "and designed to be a drop in replacement for "
+                              "tkinters.simpledialog.\n"
                               "Do you believe this?",
                          buttons=["Yes", "No", "Cancel"],
                          default=0,
@@ -1502,100 +1741,129 @@ if __name__ == "__main__":
             print(d.go())
             
             logger.info(askstring("String", "Enter a string", 
-                            initval='Hollow',
+                            initial='Ho"l\'low',
                             minlen=1, 
-                            maxlen=10,
+                            maxlen=50,
+                            illegals=['"', "'", '\\', 'ast.', 'eval(', 
+                                      'exec(', '__', 'sys.exit(', 
+                                      'os.', '.destroy('],
+                            regex=r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$",
                             parent=root))
             print()
             logger.info(askpassword("Password", "Enter your password", 
-                            initval='Hollow World',
+                            initial='Hol1owWorld!',
                             show='*',
                             minlen=8,
-                            maxlen=15,
+                            maxlen=20,
                             mincap=1,
+                            minlow=2,
                             minnum=1,
+                            minsym=1,
+                            illegals=[' ', '"', '=', "'", '\\'],
                             logval=False,
-                            returnhex=True,
+                            gethex=True,
                             parent=root))
             print()
-            logger.info(askemailaddress("Password", "Enter your password", 
-                            initval='playb4play@yahoo.com.au',
-                            minlen=8,
+            logger.info(askemailaddress("Email Address", "Enter your email address", 
+                            initial='your.name@yahoo.com.au',
+                            minlen=8, 
                             maxlen=40,
-                            illegals=[' ', '='],
+                            regex=r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$",
                             parent=root))
             print()
-            logger.info(askbytes("String to bytes", "Enter a string", 
-                            initval='Hollow World',
-                            minlen=1,
-                            maxlen=15,
-                            returnhex=False,
-                            parent=root))
-            print()
-            logger.info(askbytearray("String to bytearray", "Enter a string", 
-                            initval='Hollow World',
-                            minlen=1,
-                            maxlen=15,
-                            returnhex=False,
-                            parent=root))
-            print()
-            logger.info(askinteger("Integer", "Enter a Integer", 
-                            initval=-45, 
-                            minval=-50, 
-                            maxval=50,
-                            parent=root))
-            print()
-            logger.info(askfloat("Float", "Enter a float",
-                            initval=00041.9785, 
-                            minval=0.0, 
-                            maxval=50.0,
-                            parent=root))
-            print()
-            logger.info(askbool("Bool", "Enter a bool", 
-                            initval='1', 
-                            strict=False,
-                            parent=root))
-            print()
-            logger.info(asklist("List", "Enter a list", 
-                            initval="['Hollow', 'World']",
-                            parent=root))
-            print()
-            logger.info(asknonetuple("None", "Enter a 'None' value", 
-                            initval='null', 
-                            strict=False,
-                            parent=root))
+            # ~ logger.info(askbytes("String to bytes", "Enter a string", 
+                            # ~ initial='Hollow World',
+                            # ~ minlen=1,
+                            # ~ maxlen=15,
+                            # ~ gethex=False,
+                            # ~ parent=root))
+            # ~ print()
+            # ~ logger.info(askbytearray("String to bytearray", "Enter a string", 
+                            # ~ initial='Hollow World',
+                            # ~ minlen=1,
+                            # ~ maxlen=15,
+                            # ~ gethex=False,
+                            # ~ parent=root))
+            # ~ print()
+            # ~ logger.info(askinteger("Integer", "Enter a Integer", 
+                            # ~ initial=-45, 
+                            # ~ minval=-50, 
+                            # ~ maxval=50,
+                            # ~ parent=root))
+            # ~ print()
+            # ~ logger.info(askfloat("Float", "Enter a float",
+                            # ~ initial=00041.9785, 
+                            # ~ minval=0.0, 
+                            # ~ maxval=50.0,
+                            # ~ parent=root))
+            # ~ print()
+            # ~ logger.info(askbool("Bool", "Enter a bool", 
+                            # ~ initial='1', 
+                            # ~ strict=False,
+                            # ~ parent=root))
+            # ~ print()
+            # ~ logger.info(asklist("List", "Enter a list", 
+                            # ~ initial="['Hollow', 'World']",
+                            # ~ minitems=1,
+                            # ~ maxitems=2,
+                            # ~ types=[str, int, float, bool], # list of allowed types
+                            # ~ walk=True, # walk all child items checking security issues.
+                            # ~ parent=root))
+            # ~ print()
+            # ~ logger.info(asknonetuple("None", "Enter a 'None' value", 
+                            # ~ initial='null', 
+                            # ~ strict=False,
+                            # ~ parent=root))
             print()
             logger.info(askmultitype("Password", "Enter your password", str, 
-                            subtype='pw', # force the password sub process
-                            show='*', # Show a '*' instead of each input char
-                            initval='Hollow World', # initial input string value
-                            minlen=8, # Minimum length of input required
-                            maxlen=15, # maximum length of input allowed
-                            mincap=1, # Minimum number of capital letters required
-                            minnum=1, # Minimum number of numbers  required
-                            logval=False, # don't show password in the onedialog log
-                            returnhex=True, # Return input string as a hex string
-                            illegals=[' ', '='], # illegal chars or strings in input
-                            parent=root))
-            print()
-            logger.info(askmultitypetuple("List", "Enter a List", list, 
-                            initval="['Hollow', 'World']",
-                            parent=root))
-            print()
-            logger.info(askmultitypetuple("Dictionary", "Enter a dict", dict, 
-                            initval="{'Hollow': 'World'}",
-                            parent=root))
-            print()
-            logger.info(askmultitypetuple("Set", "Enter a set", set, 
-                            initval="{'Hollow', 'World'}",
-                            parent=root))
-            try:
-                print()
-                logger.info(askmultitypetuple("Testing Forced Error", "Forcing Error", frozenset, 
-                            initval="Hollow, World",
-                            parent=root))
-            except (NameError):
-                logger.exception("Unsupported request type.")
+                            initial='Hol1owWorld!', # initial input string value
+                            subtype='pw', # force the password sub process.
+                            minval=-50, # irrelevant in this case and will be ignored
+                            maxval=50, # irrelevant in this case and will be ignored
+                            minlen=8, # Minimum length of chars or items required.
+                            maxlen=20, # maximum length of chars or items  allowed.
+                            mincap=1, # Minimum number of capitals required in string.
+                            minlow=2, # Minimum number of lowercase required in string.
+                            minnum=1, # Minimum number of numbers  required in string.
+                            minsym=1, # Minimum number of symbols required in string.
+                            show='*', # Show '*' instead of input chars (for passwords)
+                            logval=False, # don't show passwords in the onedialog log file.
+                            gethex=True, # Return input string as a hex string
+                            illegals=[' ', '"', '=', "'", '\\'], # List of illegal input (chars or strings)
+                            regex = None, #r'', # A raw (r'') regex string used to validate input.
+                            walk=True, # walk all child items checking security issues.
+                            types=[str, int, float, bool], # list of allowed types in collections
+                            parent=root)) # A <tkinter.Tk object .>
+            # ~ print()
+            # ~ logger.info(askmultitypetuple("List", "Enter a List", list, 
+                            # ~ initial="['Hollow', 'World']",
+                            # ~ minitems=2,
+                            # ~ maxitems=3,
+                            # ~ types=[str, int, float, bool], # list of allowed types
+                            # ~ walk=True, # walk all child items checking security issues.
+                            # ~ parent=root))
+            # ~ print()
+            # ~ logger.info(askmultitypetuple("Dictionary", "Enter a dict", dict, 
+                            # ~ initial="{0: 0, 1: '1', 2: True,  3: ['bad']}",
+                            # ~ minitems=1, # Minimum number of items required.
+                            # ~ maxitems=4, # Maximum number of items allowed.
+                            # ~ walk=True, # walk all child items checking security issues.
+                            # ~ types=[str, int, float, bool], # list of allowed types
+                            # ~ parent=root))
+            # ~ print()
+            # ~ logger.info(askmultitypetuple("Set", "Enter a set", set, 
+                            # ~ initial="{'Hollow', 'World'}",
+                            # ~ minitems=1, # Minimum number of items required.
+                            # ~ maxitems=3, # Maximum number of items allowed.
+                            # ~ types=[str, int, float, bool], # list of allowed types
+                            # ~ parent=root))
+            # ~ try:
+                # ~ print()
+                # ~ logger.info(askmultitypetuple("Testing Forced Error", "Forcing Error", frozenset, 
+                            # ~ initial="Hollow, World",
+                            # ~ parent=root))
+            # ~ except (NameError):
+                # ~ logger.exception("Unsupported request type.")
 
         t = Button(root, text='Test', command=doit)
         t.pack()

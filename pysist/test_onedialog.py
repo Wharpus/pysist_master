@@ -41,7 +41,7 @@ if __name__ == "__main__":
                             returnhex=True,
                             parent=root))
             print()
-            logger.info(askemailaddress("Password", "Enter your password", 
+            logger.info(askemailaddress("Email Address", "Enter your email address", 
                             initval='your.name@yahoo.com.au',
                             minlen=8,
                             maxlen=40,
